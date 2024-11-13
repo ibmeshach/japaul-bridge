@@ -14,6 +14,9 @@ const config: HardhatUserConfig = {
       viaIR: true, // Enable intermediate representation optimization
     },
   },
+  sourcify: {
+    enabled: true,
+  },
 
   networks: {
     bnbtest: {
@@ -25,7 +28,7 @@ const config: HardhatUserConfig = {
       accounts: [`${process.env.PRI_KEY}`],
     },
     sepolia: {
-      url: `${process.env.JSON_RPC_MUMBAI}`,
+      url: `${process.env.JSON_RPC_SEPOLIA}`,
       accounts: [`${process.env.PRI_KEY}`],
     },
   },
