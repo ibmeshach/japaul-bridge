@@ -5,26 +5,21 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+
+// import "https://raw.githubusercontent.com/wormhole-foundation/wormhole-solidity-sdk/main/src/interfaces/IWormholeRelayer.sol";
+// import "https://raw.githubusercontent.com/wormhole-foundation/wormhole-solidity-sdk/main/src/interfaces/IWormholeReceiver.sol";
 
 import "./interfaces/IWormholeRelayer.sol";
 import "./interfaces/IWormholeReceiver.sol";
 
-contract ETHBridgeContract is
-    IWormholeReceiver,
-    Ownable,
-    ReentrancyGuard,
-    Initializable,
-    UUPSUpgradeable
-{
+contract ETHBridgeContract is IWormholeReceiver, Ownable, ReentrancyGuard {
     IERC20 public token;
     IWormholeRelayer public wormholeRelayer;
 
-    uint256 public gasLimit;
-    uint16 public senderChainId;
-    uint256 public gasMultiplier;
-    uint256 public costMultiplier;
+    uint256 public gasLimit = 200000;
+    uint16 public senderChainId = 10002;
+    uint256 public gasMultiplier = 3;
+    uint256 public costMultiplier = 2;
 
     mapping(uint16 => bytes32) public registeredSenders;
     mapping(bytes32 => bool) public processedMessages;
@@ -50,19 +45,7 @@ contract ETHBridgeContract is
     event ChainStatusUpdated(uint16 chain, bool status);
     event MultiplierUpdated(string multiplierType, uint256 newValue);
 
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
-    }
-
-    function initialize(
-        address _token,
-        address _wormholeRelayer,
-        uint256 _gasLimit,
-        uint16 _senderChainId,
-        uint256 _gasMultiplier,
-        uint256 _costMultiplier
-    ) public initializer {
+    constructor(address _token, address _wormholeRelayer) {
         require(_token != address(0), "Token address cannot be zero");
         require(
             _wormholeRelayer != address(0),
@@ -72,14 +55,10 @@ contract ETHBridgeContract is
         token = IERC20(_token);
         wormholeRelayer = IWormholeRelayer(_wormholeRelayer);
 
-        gasLimit = _gasLimit;
-        senderChainId = _senderChainId;
-        gasMultiplier = _gasMultiplier;
-        costMultiplier = _costMultiplier;
-
         _transferOwnership(msg.sender);
     }
 
+    // receive
     modifier onlyRegisteredSender(uint16 sourceChain, bytes32 sourceAddress) {
         require(
             registeredSenders[sourceChain] == sourceAddress,
@@ -101,8 +80,10 @@ contract ETHBridgeContract is
         require(user != address(0), "Invalid user address");
         require(amount > 0, "Amount must be greater than 0");
 
+        // Update the user's locked tokens balance
         unLockedTokens[user] += amount;
 
+        // Transfer tokens back to the user
         require(token.transfer(user, amount), "Token transfer failed");
 
         emit TokensUnlocked(user, amount, block.timestamp);
@@ -127,8 +108,10 @@ contract ETHBridgeContract is
         );
         require(!processedMessages[deliveryHash], "Message already processed");
 
+        // Mark message as processed
         processedMessages[deliveryHash] = true;
 
+        // Decode the payload (sender address and amount)
         (address sender, uint256 amount) = abi.decode(
             payload,
             (address, uint256)
@@ -141,6 +124,8 @@ contract ETHBridgeContract is
 
         _unlock(sender, amount);
     }
+
+    // send
 
     function quoteCrossChainCost(
         uint16 targetChain
@@ -190,6 +175,7 @@ contract ETHBridgeContract is
         emit TokensLocked(msg.sender, _amount, block.timestamp);
     }
 
+    // Update functions
     function updateGasLimit(uint256 _newGasLimit) external onlyOwner {
         gasLimit = _newGasLimit;
         emit MultiplierUpdated("gasLimit", _newGasLimit);
@@ -217,6 +203,7 @@ contract ETHBridgeContract is
         emit ChainStatusUpdated(_chain, _status);
     }
 
+    // Existing functions remain the same
     function withdrawTokens(address to, uint256 amount) external onlyOwner {
         require(amount > 0, "Amount must be greater than 0");
         require(
@@ -233,8 +220,4 @@ contract ETHBridgeContract is
     function getLockedTokens(address user) external view returns (uint256) {
         return lockedTokens[user];
     }
-
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyOwner {}
 }
