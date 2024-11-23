@@ -4,10 +4,10 @@ async function main() {
   const BSCBridgeMintableTokenV1 = await ethers.getContractFactory(
     "BSCBridgeMintableToken"
   );
-  console.log("Deploying ETH BRIDGE...");
+  console.log("Deploying BSC TOKEN...");
   const bsc_token_bridge = await upgrades.deployProxy(
     BSCBridgeMintableTokenV1,
-    ["name", "symbol", "initialSupply", "initialOwner"],
+    ["Wrapped JPGC", "WJPGC", "0x963194A12420bC8cfc4F2CdBd5E550FaE137fd48"],
     {
       initializer: "initialize",
     }
